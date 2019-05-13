@@ -1,0 +1,66 @@
+diff --git a/src/NuGet.Core/NuGet.Commands/RestoreCommand/CompatibilityChecker.cs b/src/NuGet.Core/NuGet.Commands/RestoreCommand/CompatibilityChecker.cs
+index 5e2973c19..974fb1b2f 100644
+--- a/src/NuGet.Core/NuGet.Commands/RestoreCommand/CompatibilityChecker.cs
++++ b/src/NuGet.Core/NuGet.Commands/RestoreCommand/CompatibilityChecker.cs
+@@ -20,7 +20,7 @@
+ 
+ namespace NuGet.Commands
+ {
+-    internal class CompatibilityChecker
++    public class CompatibilityChecker
+     {
+         private readonly IReadOnlyList<NuGetv3LocalRepository> _localRepositories;
+         private readonly LockFile _lockFile;
+@@ -35,7 +35,7 @@ public CompatibilityChecker(IReadOnlyList<NuGetv3LocalRepository> localRepositor
+             _validateRuntimeAssets = validateRuntimeAssets;
+         }
+ 
+-        internal async Task<CompatibilityCheckResult> CheckAsync(
++        public async Task<CompatibilityCheckResult> CheckAsync(
+             RestoreTargetGraph graph,
+             Dictionary<string, LibraryIncludeFlags> includeFlags,
+             PackageSpec packageSpec)
+@@ -249,7 +249,7 @@ private static RestoreLogMessage GetErrorMessage(NuGetLogCode logCode, Compatibi
+             return RestoreLogMessage.CreateError(logCode, issue.Format(), issue.Package.Id, graph.TargetGraphName);
+         }
+ 
+-        private static List<NuGetFramework> GetPackageFrameworks(
++        public static List<NuGetFramework> GetPackageFrameworks(
+             CompatibilityData compatibilityData,
+             RestoreTargetGraph graph)
+         {
+@@ -501,7 +501,7 @@ private CompatibilityData GetCompatibilityData(RestoreTargetGraph graph, Library
+             return new CompatibilityData(files, targetLibrary, packageSpec);
+         }
+ 
+-        private class CompatibilityData
++        public class CompatibilityData
+         {
+             public IEnumerable<string> Files { get; }
+             public LockFileTargetLibrary TargetLibrary { get; }
+diff --git a/src/NuGet.Core/NuGet.Commands/RestoreCommand/LockFileBuilder.cs b/src/NuGet.Core/NuGet.Commands/RestoreCommand/LockFileBuilder.cs
+index 585fc988d..398dab03e 100644
+--- a/src/NuGet.Core/NuGet.Commands/RestoreCommand/LockFileBuilder.cs
++++ b/src/NuGet.Core/NuGet.Commands/RestoreCommand/LockFileBuilder.cs
+@@ -365,7 +365,7 @@ private static void PopulatePackageFolders(IEnumerable<string> packageFolders, L
+             lockFile.PackageFolders.AddRange(packageFolders.Select(path => new LockFileItem(path)));
+         }
+ 
+-        private static LockFileLibrary CreateLockFileLibrary(LocalPackageInfo package, string sha512, string path)
++        public static LockFileLibrary CreateLockFileLibrary(LocalPackageInfo package, string sha512, string path)
+         {
+             var lockFileLib = new LockFileLibrary
+             {
+diff --git a/src/NuGet.Core/NuGet.Protocol/PackagesFolder/NuGetv3LocalRepository.cs b/src/NuGet.Core/NuGet.Protocol/PackagesFolder/NuGetv3LocalRepository.cs
+index 70f5cacb4..17168a2b4 100644
+--- a/src/NuGet.Core/NuGet.Protocol/PackagesFolder/NuGetv3LocalRepository.cs
++++ b/src/NuGet.Core/NuGet.Protocol/PackagesFolder/NuGetv3LocalRepository.cs
+@@ -62,7 +62,7 @@ public bool Exists(string packageId, NuGetVersion version)
+             return FindPackageImpl(packageId, version) != null;
+         }
+ 
+-        public LocalPackageInfo FindPackage(string packageId, NuGetVersion version)
++        public virtual LocalPackageInfo FindPackage(string packageId, NuGetVersion version)
+         {
+             var package = FindPackageImpl(packageId, version);
+ 
