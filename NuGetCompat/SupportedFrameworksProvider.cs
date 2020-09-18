@@ -11,6 +11,7 @@ using NuGet.DependencyResolver;
 using NuGet.Frameworks;
 using NuGet.LibraryModel;
 using NuGet.Packaging;
+using NuGet.Packaging.Core;
 using NuGet.ProjectModel;
 using NuGet.Protocol.Core.Types;
 using NuGet.Repositories;
@@ -19,21 +20,6 @@ using NuGet.Versioning;
 
 namespace NuGetCompat
 {
-    public class InMemoryNuGetV3Repository : NuGetv3LocalRepository
-    {
-        private readonly LocalPackageInfo _localPackageInfo;
-
-        public InMemoryNuGetV3Repository(LocalPackageInfo localPackageInfo) : base(Directory.GetCurrentDirectory())
-        {
-            _localPackageInfo = localPackageInfo;
-        }
-
-        public override LocalPackageInfo FindPackage(string packageId, NuGetVersion version)
-        {
-            return _localPackageInfo;
-        }
-    }
-
     public static class SupportedFrameworksProvider
     {
         public static IEnumerable<NuGetFramework> AllFrameworks { get; }
@@ -370,6 +356,129 @@ namespace NuGetCompat
             }
 
             return frameworks;
+        }
+
+        public static IEnumerable<NuGetFramework> SupportedByDuplicatingLogic(
+            IReadOnlyList<string> files,
+            NuspecReader nuspecReader,
+            bool stdout = false)
+        {
+            var writer = stdout ? Console.Out : TextWriter.Null;
+
+            writer.WriteLine(nuspecReader.GetId() + " " + nuspecReader.GetVersion().ToFullString());
+
+            /// Based on <see cref="CompatibilityChecker"/> and <see cref="LockFileUtils"/>.
+            // There are several caveats of this implementation:
+            // 1. Does not consider transitive dependencies                          -- can lead to false positives
+            // 2. Assumes package reference compatibility logic, not packages.config -- can lead to false positives and false negatives
+            // 3. Assumes dependency package type                                    -- can lead to false positives
+            // 4. Missing lib/contract back-compat check                             -- can lead to false positives
+            // 5. Missing <references> filtering                                     -- can lead to false positives
+            // 6. Considers framework assembly groups for package-based frameworks   -- can lead to false positives
+            // 7. Does not consider runtime identifiers                              -- can lead to false positives
+
+            var hasAssemblies = files.Any(p =>
+                p.StartsWith("ref/", StringComparison.OrdinalIgnoreCase)
+                || p.StartsWith("lib/", StringComparison.OrdinalIgnoreCase));
+
+            writer.WriteLine("  - Has assemblies: " + hasAssemblies);
+            if (!hasAssemblies)
+            {
+                yield return NuGetFramework.AnyFramework;
+            }
+
+            var items = new ContentItemCollection();
+            items.Load(files);
+
+            var conventions = new ManagedCodeConventions(new RuntimeGraph());
+
+            var patterns = new[]
+            {
+                conventions.Patterns.CompileRefAssemblies,
+                conventions.Patterns.CompileLibAssemblies,
+                conventions.Patterns.RuntimeAssemblies,
+                conventions.Patterns.ContentFiles,
+                conventions.Patterns.ResourceAssemblies,
+            };
+
+            var msbuildPatterns = new[]
+            {
+                conventions.Patterns.MSBuildTransitiveFiles,
+                conventions.Patterns.MSBuildFiles,
+                conventions.Patterns.MSBuildMultiTargetingFiles,
+            };
+
+            var groups = patterns
+                .SelectMany(p => items.FindItemGroups(p));
+
+            // Filter out MSBuild assets that don't match the package ID.
+            var packageId = nuspecReader.GetId();
+            var msbuildGroups = msbuildPatterns
+                .SelectMany(p => items.FindItemGroups(p))
+                .Where(g => HasBuildItemsForPackageId(g.Items, packageId));
+
+            var frameworksFromAssets = groups
+                .Concat(msbuildGroups)
+                .SelectMany(p => p.Properties)
+                .Where(pair => pair.Key == ManagedCodeConventions.PropertyNames.TargetFrameworkMoniker)
+                .Select(pair => pair.Value)
+                .Cast<NuGetFramework>()
+                .Distinct();
+
+            writer.WriteLine("  - Assets in the .nupkg:");
+            foreach (var f in frameworksFromAssets)
+            {
+                writer.WriteLine($"    - {f.GetShortFolderName()}");
+                yield return f;
+            }
+
+            var frameworksFromFrameworkAssemblyGroups = nuspecReader
+                .GetFrameworkAssemblyGroups()
+                .Select(g => g.TargetFramework)
+                .Distinct();
+
+            writer.WriteLine("  - <frameworkAssembly> in .nuspec:");
+            foreach (var f in frameworksFromFrameworkAssemblyGroups)
+            {
+                writer.WriteLine($"    - {f.GetShortFolderName()}");
+                yield return f;
+            }
+
+            var frameworksFromFrameworkReferenceGroups = nuspecReader
+                .GetFrameworkRefGroups()
+                .Select(g => g.TargetFramework)
+                .Distinct();
+
+            writer.WriteLine("  - <frameworkReference> in .nuspec:");
+            foreach (var f in frameworksFromFrameworkReferenceGroups)
+            {
+                writer.WriteLine($"    - {f.GetShortFolderName()}");
+                yield return f;
+            }
+        }
+
+        private static bool HasBuildItemsForPackageId(IEnumerable<ContentItem> items, string packageId)
+        {
+            foreach (var item in items)
+            {
+                var fileName = Path.GetFileName(item.Path);
+                if (fileName == PackagingCoreConstants.EmptyFolder)
+                {
+                    return true;
+                }
+
+                if ($"{packageId}.props".Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if ($"{packageId}.targets".Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

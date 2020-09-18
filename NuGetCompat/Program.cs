@@ -54,17 +54,26 @@ namespace NuGetCompat
                 var supportedByRestore = SupportedFrameworksProvider.SupportedByCompatiblityChecker(package.Files, package.Nuspec);
                 supportedByRestore = ReduceFrameworks(supportedByRestore);
 
+                using var nuspecStream = File.OpenRead(package.ManifestPath);
+                var nuspecReader = new NuspecReader(nuspecStream);
+
                 var supportedByRestore2 = await SupportedFrameworksProvider.SupportedByCompatiblityChecker2Async(
                     package.Files,
                     new NuspecReader(File.OpenRead(package.ManifestPath)),
                     NullLogger.Instance);
                 supportedByRestore2 = ReduceFrameworks(supportedByRestore2);
 
+                var supportedByDuplicatingLogic = SupportedFrameworksProvider.SupportedByDuplicatingLogic(
+                    package.Files,
+                    nuspecReader).ToHashSet();
+                supportedByDuplicatingLogic = ReduceFrameworks(supportedByDuplicatingLogic);
+
                 Console.WriteLine(enumerator.Current.Identity);
                 DumpFrameworks(nameof(fromNuspecReader), fromNuspecReader);
                 DumpFrameworks(nameof(suggestedByRestore), suggestedByRestore);
                 DumpFrameworks(nameof(supportedByRestore), supportedByRestore);
                 DumpFrameworks(nameof(supportedByRestore2), supportedByRestore2);
+                DumpFrameworks(nameof(supportedByDuplicatingLogic), supportedByDuplicatingLogic);
                 Console.WriteLine();
 
                 break;
