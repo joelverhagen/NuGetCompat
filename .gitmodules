@@ -1,0 +1,3 @@
+[submodule "submodules/NuGet.Client"]
+	path = submodules/NuGet.Client
+	url = git@github.com:NuGet/NuGet.Client.git

@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj" />
+    <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj" />
   </ItemGroup>
 
 </Project>

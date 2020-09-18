@@ -5,29 +5,29 @@ VisualStudioVersion = 15.0.28307.329
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetCompat", "NuGetCompat\NuGetCompat.csproj", "{17489FE7-3379-4411-A38E-5BB9CF812DBF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Commands", "..\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj", "{AD7D162A-75BC-4299-AA1F-F73D2FB1D1AA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Commands", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj", "{AD7D162A-75BC-4299-AA1F-F73D2FB1D1AA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Packaging", "..\NuGet.Client\src\NuGet.Core\NuGet.Packaging\NuGet.Packaging.csproj", "{A00C606D-44F5-4274-B8FE-88934FA82643}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Packaging", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Packaging\NuGet.Packaging.csproj", "{A00C606D-44F5-4274-B8FE-88934FA82643}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet.Client", "NuGet.Client", "{C74D8DAE-6DE0-4E3B-BC76-34C0EC51B4A6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Credentials", "..\NuGet.Client\src\NuGet.Core\NuGet.Credentials\NuGet.Credentials.csproj", "{C53CDFDB-6E35-47F3-B263-805B14AF2EB2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Credentials", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Credentials\NuGet.Credentials.csproj", "{C53CDFDB-6E35-47F3-B263-805B14AF2EB2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.ProjectModel", "..\NuGet.Client\src\NuGet.Core\NuGet.ProjectModel\NuGet.ProjectModel.csproj", "{B197F6ED-E922-4D72-8914-08C8D0C939BF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.ProjectModel", "submodules\NuGet.Client\src\NuGet.Core\NuGet.ProjectModel\NuGet.ProjectModel.csproj", "{B197F6ED-E922-4D72-8914-08C8D0C939BF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Protocol", "..\NuGet.Client\src\NuGet.Core\NuGet.Protocol\NuGet.Protocol.csproj", "{4D363B31-39FA-4A15-8DFF-6834C869D707}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Protocol", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Protocol\NuGet.Protocol.csproj", "{4D363B31-39FA-4A15-8DFF-6834C869D707}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Configuration", "..\NuGet.Client\src\NuGet.Core\NuGet.Configuration\NuGet.Configuration.csproj", "{BF5F48FB-975D-4CCE-BE00-F6EDD951EA7F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Configuration", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Configuration\NuGet.Configuration.csproj", "{BF5F48FB-975D-4CCE-BE00-F6EDD951EA7F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Versioning", "..\NuGet.Client\src\NuGet.Core\NuGet.Versioning\NuGet.Versioning.csproj", "{E8D773F4-D04E-40BC-94D2-C5AD236A32F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Versioning", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Versioning\NuGet.Versioning.csproj", "{E8D773F4-D04E-40BC-94D2-C5AD236A32F6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Common", "..\NuGet.Client\src\NuGet.Core\NuGet.Common\NuGet.Common.csproj", "{FF0279A2-116C-4995-B208-69B02A1D6CCB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Common", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Common\NuGet.Common.csproj", "{FF0279A2-116C-4995-B208-69B02A1D6CCB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Frameworks", "..\NuGet.Client\src\NuGet.Core\NuGet.Frameworks\NuGet.Frameworks.csproj", "{CB1EA74D-C75B-4AEE-ADA0-EC98D86BD3AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Frameworks", "submodules\NuGet.Client\src\NuGet.Core\NuGet.Frameworks\NuGet.Frameworks.csproj", "{CB1EA74D-C75B-4AEE-ADA0-EC98D86BD3AD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.DependencyResolver.Core", "..\NuGet.Client\src\NuGet.Core\NuGet.DependencyResolver.Core\NuGet.DependencyResolver.Core.csproj", "{8E9C2FD8-8140-464F-AD4B-5B4BA148AAC4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.DependencyResolver.Core", "submodules\NuGet.Client\src\NuGet.Core\NuGet.DependencyResolver.Core\NuGet.DependencyResolver.Core.csproj", "{8E9C2FD8-8140-464F-AD4B-5B4BA148AAC4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.LibraryModel", "..\NuGet.Client\src\NuGet.Core\NuGet.LibraryModel\NuGet.LibraryModel.csproj", "{D98C55D3-56FC-41FB-A035-9A1947418AD6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.LibraryModel", "submodules\NuGet.Client\src\NuGet.Core\NuGet.LibraryModel\NuGet.LibraryModel.csproj", "{D98C55D3-56FC-41FB-A035-9A1947418AD6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

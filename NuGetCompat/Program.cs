@@ -23,7 +23,7 @@ namespace NuGetCompat
 
         static async Task MainAsync(CancellationToken cancellationToken)
         {
-            var repository = Repository.Factory.GetCoreV3(@"C:\Users\joelv\.nuget\packages");
+            var repository = Repository.Factory.GetCoreV3(@"C:\Users\jver\.nuget\packages");
             var listResource = await repository.GetResourceAsync<ListResource>();
 
             var list = await listResource.ListAsync(
@@ -38,7 +38,7 @@ namespace NuGetCompat
             while (await enumerator.MoveNextAsync())
             {
                 var package = GetPackageFromLocalRepository(
-                    @"C:\Users\joelv\.nuget\packages",
+                    @"C:\Users\jver\.nuget\packages",
                     enumerator.Current.Identity.Id,
                     enumerator.Current.Identity.Version);
 
@@ -66,6 +66,8 @@ namespace NuGetCompat
                 DumpFrameworks(nameof(supportedByRestore), supportedByRestore);
                 DumpFrameworks(nameof(supportedByRestore2), supportedByRestore2);
                 Console.WriteLine();
+
+                break;
             }
         }
 
