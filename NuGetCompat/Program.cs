@@ -5,12 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Common;
+using NuGet.Configuration;
 using NuGet.Frameworks;
-using NuGet.Packaging;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
-using NuGet.Repositories;
-using NuGet.Versioning;
 
 namespace NuGetCompat
 {
@@ -23,60 +21,84 @@ namespace NuGetCompat
 
         static async Task MainAsync(CancellationToken cancellationToken)
         {
-            var repository = Repository.Factory.GetCoreV3(@"C:\Users\jver\.nuget\packages");
-            var listResource = await repository.GetResourceAsync<ListResource>();
+            var source = "https://api.nuget.org/v3/index.json";
+            var repository = Repository.Factory.GetCoreV3(source);
+            var search = await repository.GetResourceAsync<PackageSearchResource>();
+            var download = await repository.GetResourceAsync<DownloadResource>();
+            var logger = NullLogger.Instance;
+            var settings = Settings.LoadDefaultSettings(Directory.GetCurrentDirectory());
+            var globalPackagesFolder = SettingsUtility.GetGlobalPackagesFolder(settings);
 
-            var list = await listResource.ListAsync(
-                searchTerm: null,
-                prerelease: true,
-                allVersions: true,
-                includeDelisted: true,
-                log: NullLogger.Instance,
-                token: CancellationToken.None);
+            var take = 20;
+            Console.WriteLine($"Searching for top {take} packages...");
+            var results = await search.SearchAsync(
+                searchTerm: string.Empty,
+                new SearchFilter(includePrerelease: true),
+                skip: 0,
+                take: take,
+                log: logger,
+                cancellationToken: cancellationToken);
 
-            var enumerator = list.GetEnumeratorAsync();
-            while (await enumerator.MoveNextAsync())
+            using var sourceCacheContext = new SourceCacheContext();
+            var packageDownloadContext = new PackageDownloadContext(sourceCacheContext);
+
+            foreach (var result in results)
             {
-                var package = GetPackageFromLocalRepository(
-                    @"C:\Users\jver\.nuget\packages",
-                    enumerator.Current.Identity.Id,
-                    enumerator.Current.Identity.Version);
+                Console.Write($"Downloading {result.Identity.Id} {result.Identity.Version.ToNormalizedString()}...");
+                using var downloadResult = await download.GetDownloadResourceResultAsync(
+                    result.Identity,
+                    packageDownloadContext,
+                    globalPackagesFolder,
+                    logger,
+                    cancellationToken);
+                Console.WriteLine(" done.");
+
+                var files = downloadResult.PackageReader.GetFiles().ToList();
 
                 var fromNuspecReader = SupportedFrameworksProvider.SuggestedByNuspecReader(
-                    package.Files,
-                    Path.GetFileName(package.ManifestPath),
-                    () => File.OpenRead(package.ManifestPath));
+                    files,
+                    $"{downloadResult.PackageReader.GetIdentity().Id.ToLowerInvariant()}.nuspec",
+                    () => downloadResult.PackageReader.GetNuspec());
                 fromNuspecReader = ReduceFrameworks(fromNuspecReader);
 
-                var suggestedByRestore = SupportedFrameworksProvider.SuggestedByCompatibilityChecker(package.Files);
+                var suggestedByRestore = SupportedFrameworksProvider.SuggestedByCompatibilityChecker(files);
                 suggestedByRestore = ReduceFrameworks(suggestedByRestore);
 
-                var supportedByRestore = SupportedFrameworksProvider.SupportedByCompatiblityChecker(package.Files, package.Nuspec);
+                var supportedByRestore = SupportedFrameworksProvider.SupportedByCompatiblityChecker(files, downloadResult.PackageReader.NuspecReader);
                 supportedByRestore = ReduceFrameworks(supportedByRestore);
 
-                using var nuspecStream = File.OpenRead(package.ManifestPath);
-                var nuspecReader = new NuspecReader(nuspecStream);
-
                 var supportedByRestore2 = await SupportedFrameworksProvider.SupportedByCompatiblityChecker2Async(
-                    package.Files,
-                    new NuspecReader(File.OpenRead(package.ManifestPath)),
-                    NullLogger.Instance);
+                    files,
+                    downloadResult.PackageReader.NuspecReader,
+                    logger);
                 supportedByRestore2 = ReduceFrameworks(supportedByRestore2);
 
                 var supportedByDuplicatingLogic = SupportedFrameworksProvider.SupportedByDuplicatingLogic(
-                    package.Files,
-                    nuspecReader).ToHashSet();
+                    files,
+                    downloadResult.PackageReader.NuspecReader).ToHashSet();
                 supportedByDuplicatingLogic = ReduceFrameworks(supportedByDuplicatingLogic);
 
-                Console.WriteLine(enumerator.Current.Identity);
-                DumpFrameworks(nameof(fromNuspecReader), fromNuspecReader);
-                DumpFrameworks(nameof(suggestedByRestore), suggestedByRestore);
-                DumpFrameworks(nameof(supportedByRestore), supportedByRestore);
-                DumpFrameworks(nameof(supportedByRestore2), supportedByRestore2);
-                DumpFrameworks(nameof(supportedByDuplicatingLogic), supportedByDuplicatingLogic);
-                Console.WriteLine();
+                var sets = new Dictionary<string, HashSet<NuGetFramework>>
+                {
+                    { nameof(fromNuspecReader), fromNuspecReader },
+                    { nameof(suggestedByRestore), suggestedByRestore },
+                    { nameof(supportedByRestore), supportedByRestore },
+                    { nameof(supportedByRestore2), supportedByRestore2 },
+                    { nameof(supportedByDuplicatingLogic), supportedByDuplicatingLogic },
+                };
 
-                break;
+                var haveAny = sets.Values.Any(x => x.Contains(NuGetFramework.AnyFramework));
+                var haveDifferent = sets.Values.Any(x => !sets.Values.All(y => x.SetEquals(y)));
+
+                if (haveAny || haveDifferent)
+                {
+                    foreach (var pair in sets)
+                    {
+                        DumpFrameworks(pair.Key, pair.Value);
+                    }
+
+                    Console.WriteLine();
+                }
             }
         }
 
@@ -101,21 +123,6 @@ namespace NuGetCompat
                 .ToSet();
 
             return set;
-        }
-
-        private static NuGet.Repositories.LocalPackageInfo GetPackageFromLocalRepository(string path, string id, NuGetVersion version)
-        {
-            var repository = new NuGetv3LocalRepository(path);
-            using (var sourceCacheContext = new SourceCacheContext())
-            {
-                var package = repository.FindPackage(id, version);
-                if (package == null)
-                {
-                    throw new InvalidOperationException("The requested package does not exist in the local repository.");
-                }
-
-                return package;
-            }
         }
     }
 }
