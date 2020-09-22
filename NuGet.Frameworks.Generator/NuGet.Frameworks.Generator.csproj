@@ -15,7 +15,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj" />
     <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Frameworks\NuGet.Frameworks.csproj" />
   </ItemGroup>
 
