@@ -4,7 +4,7 @@
     <small>Execution duration: @Model.Duration</small>
 </p>
 
-@foreach (var framework in Model.Result.Select(x => x.GetShortFolderName()).OrderBy(x => x))
+@foreach (var framework in Model.Result.Select(x => x.GetShortFolderName()).Distinct().OrderBy(x => x))
 {
     <span class="badge badge-primary">@framework</span>
     @Environment.NewLine
