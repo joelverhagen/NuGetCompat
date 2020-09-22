@@ -14,14 +14,14 @@ namespace NuGetCompat
 {
     public class InMemoryPackageReader : PackageReaderBase
     {
+        public static readonly string ManifestPath = "package.nuspec";
+
         private readonly IReadOnlyList<string> _files;
-        private readonly string _manifestPath;
         private readonly Func<Stream> _getManifestStream;
 
-        public InMemoryPackageReader(IReadOnlyList<string> files, string manifestPath, Func<Stream> getNuspecStream) : base(DefaultFrameworkNameProvider.Instance)
+        public InMemoryPackageReader(IReadOnlyList<string> files, Func<Stream> getNuspecStream) : base(DefaultFrameworkNameProvider.Instance)
         {
             _files = files ?? throw new ArgumentNullException(nameof(files));
-            _manifestPath = manifestPath ?? throw new ArgumentNullException(nameof(manifestPath));
             _getManifestStream = getNuspecStream ?? throw new ArgumentNullException(nameof(getNuspecStream));
         }
 
@@ -62,7 +62,7 @@ namespace NuGetCompat
 
         public override Stream GetStream(string path)
         {
-            if (path == _manifestPath)
+            if (path == ManifestPath)
             {
                 return _getManifestStream();
             }

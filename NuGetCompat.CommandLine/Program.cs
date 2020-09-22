@@ -10,7 +10,7 @@ using NuGet.Frameworks;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 
-namespace NuGetCompat
+namespace NuGetCompat.CommandLine
 {
     class Program
     {
@@ -55,36 +55,35 @@ namespace NuGetCompat
 
                 var files = downloadResult.PackageReader.GetFiles().ToList();
 
-                var fromNuspecReader = SupportedFrameworksProvider.SuggestedByNuspecReader(
+                var supportedByNuspecReader = SupportedFrameworksProvider.SupportedByNuspecReader(
                     files,
-                    $"{downloadResult.PackageReader.GetIdentity().Id.ToLowerInvariant()}.nuspec",
                     () => downloadResult.PackageReader.GetNuspec());
-                fromNuspecReader = ReduceFrameworks(fromNuspecReader);
+                supportedByNuspecReader = ReduceFrameworks(supportedByNuspecReader);
 
-                var suggestedByRestore = SupportedFrameworksProvider.SuggestedByCompatibilityChecker(files);
-                suggestedByRestore = ReduceFrameworks(suggestedByRestore);
+                var suggestedByNU1202 = SupportedFrameworksProvider.SuggestedByNU1202(files);
+                suggestedByNU1202 = ReduceFrameworks(suggestedByNU1202);
 
-                var supportedByRestore = SupportedFrameworksProvider.SupportedByCompatiblityChecker(files, downloadResult.PackageReader.NuspecReader);
-                supportedByRestore = ReduceFrameworks(supportedByRestore);
+                var supportedByPatternSets = SupportedFrameworksProvider.SupportedByPatternSets(files);
+                supportedByPatternSets = ReduceFrameworks(supportedByPatternSets);
 
-                var supportedByRestore2 = await SupportedFrameworksProvider.SupportedByCompatiblityChecker2Async(
+                var supportedByFrameworkEnumeration = await SupportedFrameworksProvider.SupportedByFrameworkEnumerationAsync(
                     files,
                     downloadResult.PackageReader.NuspecReader,
                     logger);
-                supportedByRestore2 = ReduceFrameworks(supportedByRestore2);
+                supportedByFrameworkEnumeration = ReduceFrameworks(supportedByFrameworkEnumeration);
 
-                var supportedByDuplicatingLogic = SupportedFrameworksProvider.SupportedByDuplicatingLogic(
+                var supportedByDuplicatedLogic = SupportedFrameworksProvider.SupportedByDuplicatedLogic(
                     files,
                     downloadResult.PackageReader.NuspecReader).ToHashSet();
-                supportedByDuplicatingLogic = ReduceFrameworks(supportedByDuplicatingLogic);
+                supportedByDuplicatedLogic = ReduceFrameworks(supportedByDuplicatedLogic);
 
                 var sets = new Dictionary<string, HashSet<NuGetFramework>>
                 {
-                    { nameof(fromNuspecReader), fromNuspecReader },
-                    { nameof(suggestedByRestore), suggestedByRestore },
-                    { nameof(supportedByRestore), supportedByRestore },
-                    { nameof(supportedByRestore2), supportedByRestore2 },
-                    { nameof(supportedByDuplicatingLogic), supportedByDuplicatingLogic },
+                    { nameof(supportedByNuspecReader), supportedByNuspecReader },
+                    { nameof(suggestedByNU1202), suggestedByNU1202 },
+                    { nameof(supportedByPatternSets), supportedByPatternSets },
+                    { nameof(supportedByFrameworkEnumeration), supportedByFrameworkEnumeration },
+                    { nameof(supportedByDuplicatedLogic), supportedByDuplicatedLogic },
                 };
 
                 var haveAny = sets.Values.Any(x => x.Contains(NuGetFramework.AnyFramework));

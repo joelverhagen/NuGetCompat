@@ -1,0 +1,112 @@
+﻿@page "/"
+@inject CompatibilityService Compatibility
+@using NuGet.Versioning
+
+<h1>Package Compatibility</h1>
+
+<EditForm Model="@input" OnValidSubmit="@HandleValidSubmitAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="packageId">Package ID</label>
+        <InputText class="form-control" id="packageId" @bind-Value="@input.Id" />
+    </div>
+    <div class="form-group">
+        <label for="packageVersion">Package Version</label>
+        <InputText class="form-control" id="packageVersion" @bind-Value="@input.Version" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@submitting">Submit</button>
+</EditForm>
+
+@if (submitting)
+{
+    <p><em>Loading...</em></p>
+}
+
+@if (result != null)
+{
+    switch (result.Type)
+    {
+        case CompatibilityResultType.NotFound:
+            <div class="alert alert-warning" role="alert">
+                The provided package does not exist.
+            </div>
+            break;
+
+        case CompatibilityResultType.Ok:
+            <h2>Supported Frameworks</h2>
+
+            <h3>From <code>NuspecReader</code></h3>
+            <FrameworkList Frameworks="@result.SupportedFrameworks.NuspecReader" />
+
+            <h3>Suggested by NU1202</h3>
+            <FrameworkList Frameworks="@result.SupportedFrameworks.NU1202" />
+
+            <h3>Supported by pattern sets</h3>
+            <FrameworkList Frameworks="@result.SupportedFrameworks.PatternSets" />
+
+            <h3>Detected by framework enumeration</h3>
+            <FrameworkList Frameworks="@result.SupportedFrameworks.FrameworkEnumeration" />
+
+            <h3>Supported by duplicating restore logic</h3>
+            <FrameworkList Frameworks="@result.SupportedFrameworks.DuplicatedLogic" />
+
+            <h2>Files</h2>
+            <pre class="pre-scrollable">
+            @foreach (var file in result.Files)
+            {
+                @file
+                @Environment.NewLine
+            }
+            </pre>
+
+            <h2>Nuspec</h2>
+            <pre class="pre-scrollable">@result.NuspecReader.Xml.ToString()</pre>
+            break;
+
+        default:
+            <div class="alert alert-error" role="alert">
+                The result is not supported.
+            </div>
+            break;
+    }
+}
+
+@if (errorMessage != null)
+{
+    <pre>@errorMessage</pre>
+}
+
+@code {
+    private PackageCompatibiityInput input = new PackageCompatibiityInput();
+    private bool submitting;
+    private CompatibilityResult result;
+    private string errorMessage;
+
+    protected async Task HandleValidSubmitAsync()
+    {
+        if (submitting)
+        {
+            return;
+        }
+
+        submitting = true;
+        try
+        {
+            var version = NuGetVersion.Parse(input.Version);
+            result = await Compatibility.GetCompatibilityAsync(input.Id, version);
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            errorMessage = ex.ToString();
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+}

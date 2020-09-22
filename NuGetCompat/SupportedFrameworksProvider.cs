@@ -133,16 +133,16 @@ namespace NuGetCompat
                 .ToList();
         }
 
-        public static HashSet<NuGetFramework> SuggestedByNuspecReader(IReadOnlyList<string> files, string manifestPath, Func<Stream> getStream)
+        public static HashSet<NuGetFramework> SupportedByNuspecReader(IReadOnlyList<string> files, Func<Stream> getStream)
         {
-            var packageReader = new InMemoryPackageReader(files, manifestPath, getStream);
+            var packageReader = new InMemoryPackageReader(files, getStream);
 
             var frameworks = packageReader.GetSupportedFrameworks();
 
             return new HashSet<NuGetFramework>(frameworks);
         }
 
-        public static HashSet<NuGetFramework> SuggestedByCompatibilityChecker(IReadOnlyList<string> files)
+        public static HashSet<NuGetFramework> SuggestedByNU1202(IReadOnlyList<string> files)
         {
             var compatibilityData = new CompatibilityChecker.CompatibilityData(
                 files,
@@ -164,7 +164,7 @@ namespace NuGetCompat
             return new HashSet<NuGetFramework>(frameworks);
         }
 
-        public static async Task<HashSet<NuGetFramework>> SupportedByCompatiblityChecker2Async(IReadOnlyList<string> files, NuspecReader nuspecReader, ILogger logger)
+        public static async Task<HashSet<NuGetFramework>> SupportedByFrameworkEnumerationAsync(IReadOnlyList<string> files, NuspecReader nuspecReader, ILogger logger)
         {
             var compatible = new HashSet<NuGetFramework>();
 
@@ -271,7 +271,7 @@ namespace NuGetCompat
             return compatible;
         }
 
-        public static HashSet<NuGetFramework> SupportedByCompatiblityChecker(IReadOnlyList<string> files, NuspecReader nuspecReader)
+        public static HashSet<NuGetFramework> SupportedByPatternSets(IReadOnlyList<string> files)
         {
             var contentItemCollection = new ContentItemCollection();
             contentItemCollection.Load(files);
@@ -358,7 +358,7 @@ namespace NuGetCompat
             return frameworks;
         }
 
-        public static IEnumerable<NuGetFramework> SupportedByDuplicatingLogic(
+        public static IEnumerable<NuGetFramework> SupportedByDuplicatedLogic(
             IReadOnlyList<string> files,
             NuspecReader nuspecReader,
             bool stdout = false)

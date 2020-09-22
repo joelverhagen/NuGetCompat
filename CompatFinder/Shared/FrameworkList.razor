@@ -1,0 +1,11 @@
+﻿@using NuGet.Frameworks
+
+@foreach (var framework in Frameworks)
+{
+    <span class="badge badge-primary">@framework.GetShortFolderName()</span>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<NuGetFramework> Frameworks { get; set; }
+}
