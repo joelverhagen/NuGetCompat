@@ -59,5 +59,7 @@ namespace CompatFinder.Models
         [Required(ErrorMessage = "The package version is required.")]
         [PackageVersionValidation]
         public string Version { get; set; }
+
+        public bool AllowEnumeration { get; set; }
     }
 }

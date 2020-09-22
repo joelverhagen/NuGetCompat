@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using NuGet.Frameworks;
 
-namespace NuGetCompat
+namespace NuGet.Frameworks.Generator
 {
     public class FrameworkEnumerator
     {

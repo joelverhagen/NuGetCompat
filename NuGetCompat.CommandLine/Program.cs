@@ -57,10 +57,10 @@ namespace NuGetCompat.CommandLine
 
                 var supportedByNuspecReader = SupportedFrameworksProvider.SupportedByNuspecReader(
                     files,
-                    () => downloadResult.PackageReader.GetNuspec());
+                    () => downloadResult.PackageReader.GetNuspec()).ToHashSet();
                 supportedByNuspecReader = ReduceFrameworks(supportedByNuspecReader);
 
-                var suggestedByNU1202 = SupportedFrameworksProvider.SuggestedByNU1202(files);
+                var suggestedByNU1202 = SupportedFrameworksProvider.SuggestedByNU1202(files).ToHashSet();
                 suggestedByNU1202 = ReduceFrameworks(suggestedByNU1202);
 
                 var supportedByPatternSets = SupportedFrameworksProvider.SupportedByPatternSets(files);
@@ -79,8 +79,8 @@ namespace NuGetCompat.CommandLine
 
                 var sets = new Dictionary<string, HashSet<NuGetFramework>>
                 {
-                    { nameof(supportedByNuspecReader), supportedByNuspecReader },
-                    { nameof(suggestedByNU1202), suggestedByNU1202 },
+                    { nameof(supportedByNuspecReader), supportedByNuspecReader.ToHashSet() },
+                    { nameof(suggestedByNU1202), suggestedByNU1202.ToHashSet() },
                     { nameof(supportedByPatternSets), supportedByPatternSets },
                     { nameof(supportedByFrameworkEnumeration), supportedByFrameworkEnumeration },
                     { nameof(supportedByDuplicatedLogic), supportedByDuplicatedLogic },
@@ -116,12 +116,10 @@ namespace NuGetCompat.CommandLine
             var reducer = new FrameworkReducer();
             var reducedSpecific = reducer.ReduceDownwards(specificGroups[true]);
 
-            var set = reducedSpecific
+            return reducedSpecific
                 .Concat(specificGroups[false].Distinct())
                 .OrderBy(x => x, new NuGetFrameworkSorter())
-                .ToSet();
-
-            return set;
+                .ToHashSet();
         }
     }
 }

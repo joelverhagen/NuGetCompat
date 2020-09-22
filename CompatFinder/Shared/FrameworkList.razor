@@ -1,11 +1,23 @@
 ﻿@using NuGet.Frameworks
 
-@foreach (var framework in Frameworks)
+<p>
+    <small>Execution duration: @Model.Duration</small>
+</p>
+
+@foreach (var framework in Model.Result)
 {
     <span class="badge badge-primary">@framework.GetShortFolderName()</span>
+    @Environment.NewLine
+}
+
+@if (Model.Result.Count == 0)
+{
+    <p>
+        <em>No compatible frameworks returned.</em>
+    </p>
 }
 
 @code {
     [Parameter]
-    public IReadOnlyList<NuGetFramework> Frameworks { get; set; }
+    public ResultWithDuration<IReadOnlyList<NuGetFramework>> Model { get; set; }
 }

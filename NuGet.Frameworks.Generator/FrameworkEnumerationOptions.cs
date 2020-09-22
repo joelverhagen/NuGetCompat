@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NuGetCompat
+namespace NuGet.Frameworks.Generator
 {
     [Flags]
     public enum FrameworkEnumerationOptions

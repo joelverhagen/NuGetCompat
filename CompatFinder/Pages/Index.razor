@@ -1,89 +1,155 @@
 ﻿@page "/"
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 @inject CompatibilityService Compatibility
+@using Microsoft.AspNetCore.WebUtilities
 @using NuGet.Versioning
+@using System.Diagnostics
 
-<h1>Package Compatibility</h1>
+<div class="package-compatibility">
+    <h1>Package Compatibility</h1>
 
-<EditForm Model="@input" OnValidSubmit="@HandleValidSubmitAsync">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+    <EditForm EditContext="@editContext" OnValidSubmit="@HandleValidSubmitAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-    <div class="form-group">
-        <label for="packageId">Package ID</label>
-        <InputText class="form-control" id="packageId" @bind-Value="@input.Id" />
-    </div>
-    <div class="form-group">
-        <label for="packageVersion">Package Version</label>
-        <InputText class="form-control" id="packageVersion" @bind-Value="@input.Version" />
-    </div>
+        <div class="form-group">
+            <label for="packageId">Package ID</label>
+            <InputText class="form-control" id="packageId" @bind-Value="@input.Id" />
+        </div>
+        <div class="form-group">
+            <label for="packageVersion">Package Version</label>
+            <InputText class="form-control" id="packageVersion" @bind-Value="@input.Version" />
+        </div>
 
-    <button type="submit" class="btn btn-primary" disabled="@submitting">Submit</button>
-</EditForm>
+        <div class="form-group form-check">
+            <InputCheckbox class="form-check-input" id="allowEnumeration" @bind-Value="@input.AllowEnumeration" />
+            <label class="form-check-label" for="allowEnumeration">Allow framework enumeration (slow!)</label>
+        </div>
 
-@if (submitting)
-{
-    <p><em>Loading...</em></p>
-}
+        <button type="submit" class="btn btn-primary" disabled="@submitting">Submit</button>
+    </EditForm>
 
-@if (result != null)
-{
-    switch (result.Type)
+    @if (submitting)
     {
-        case CompatibilityResultType.NotFound:
-            <div class="alert alert-warning" role="alert">
-                The provided package does not exist.
-            </div>
-            break;
+        <p class="mt-3">
+            <em>Loading...</em>
+        </p>
+    }
 
-        case CompatibilityResultType.Ok:
-            <h2>Supported Frameworks</h2>
+    @if (totalDuration > TimeSpan.Zero)
+    {
+        <p class="mt-3"><small><b>Total duration: @totalDuration</b></small></p>
+    }
 
-            <h3>From <code>NuspecReader</code></h3>
-            <FrameworkList Frameworks="@result.SupportedFrameworks.NuspecReader" />
+    @if (result != null)
+    {
+        <h2>Result</h2>
+        switch (result.Type)
+        {
+            case CompatibilityResultType.NotFound:
+                <div class="alert alert-warning" role="alert">
+                    The requested package does not exist.
+                </div>
+                break;
 
-            <h3>Suggested by NU1202</h3>
-            <FrameworkList Frameworks="@result.SupportedFrameworks.NU1202" />
+            case CompatibilityResultType.Ok:
+                <h3>From <code>NuspecReader</code></h3>
+                <p>Naively calls the <code>GetSupportedFrameworks</code> method on <code>NuspecReader</code>.</p>
+                <FrameworkList Model="@result.SupportedFrameworks.NuspecReader" />
 
-            <h3>Supported by pattern sets</h3>
-            <FrameworkList Frameworks="@result.SupportedFrameworks.PatternSets" />
+                <h3>Suggested by NU1202</h3>
+                <p>Invokes the same logic used to produce the list of suggested frameworks in the <code>NU1202</code> error message.</p>
+                <FrameworkList Model="@result.SupportedFrameworks.NU1202" />
 
-            <h3>Detected by framework enumeration</h3>
-            <FrameworkList Frameworks="@result.SupportedFrameworks.FrameworkEnumeration" />
+                <h3>Supported by pattern sets</h3>
+                <p>Determines what frameworks are found via some  of the <code>ManagedCodeConventions</code> pattern sets.</p>
+                <FrameworkList Model="@result.SupportedFrameworks.PatternSets" />
 
-            <h3>Supported by duplicating restore logic</h3>
-            <FrameworkList Frameworks="@result.SupportedFrameworks.DuplicatedLogic" />
+                @if (allowedEnumeration)
+                {
+                    <h3>Detected by framework enumeration</h3>
+                    <p>Enumerates all known frameworks as tests compatibility one at a time.</p>
+                    <FrameworkList Model="@result.SupportedFrameworks.FrameworkEnumeration" />
+                }
 
-            <h2>Files</h2>
-            <pre class="pre-scrollable">
-            @foreach (var file in result.Files)
+                <h3>Supported by duplicating restore logic</h3>
+                <p>Performs similar compatibility logic as restore, but rewritten to enumerate instead of checking a single project framework.</p>
+                <FrameworkList Model="@result.SupportedFrameworks.DuplicatedLogic" />
+
+                <h3>Files</h3>
+                <p>The list of all file names in the package.</p>
+                <p><small>Execution duration: @result.Files.Duration</small></p>
+                <pre>
+            @foreach (var file in result.Files.Result)
             {
                 @file
                 @Environment.NewLine
             }
             </pre>
 
-            <h2>Nuspec</h2>
-            <pre class="pre-scrollable">@result.NuspecReader.Xml.ToString()</pre>
-            break;
+                <h3>Nuspec</h3>
+                <p>The contents of the package .nuspec file (a.k.a. the manifest).</p>
+                <p><small>Execution duration: @result.NuspecReader.Duration</small></p>
+                <pre>@result.NuspecReader.Result.Xml.ToString()</pre>
+                break;
 
-        default:
-            <div class="alert alert-error" role="alert">
-                The result is not supported.
-            </div>
-            break;
+            default:
+                <div class="alert alert-error" role="alert">
+                    The result is not supported.
+                </div>
+                break;
+        }
     }
-}
 
-@if (errorMessage != null)
-{
-    <pre>@errorMessage</pre>
-}
+    @if (errorMessage != null)
+    {
+        <h2>Error</h2>
+        <pre>@errorMessage</pre>
+    }
+</div>
+
 
 @code {
-    private PackageCompatibiityInput input = new PackageCompatibiityInput();
+    [Parameter]
+    public string PackageId { get; set; }
+
+    [Parameter]
+    public string PackageVersion { get; set; }
+
+    private EditContext editContext;
+    private PackageCompatibiityInput input;
     private bool submitting;
+    private bool allowedEnumeration;
     private CompatibilityResult result;
     private string errorMessage;
+    private TimeSpan totalDuration;
+
+    protected override async Task OnInitializedAsync()
+    {
+        input = new PackageCompatibiityInput();
+        editContext = new EditContext(input);
+
+        var currentUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var currentQuery = QueryHelpers.ParseQuery(currentUri.Query);
+
+        if (currentQuery.TryGetValue("id", out var id))
+        {
+            input.Id = id.First();
+            editContext.NotifyFieldChanged(editContext.Field(nameof(PackageCompatibiityInput.Id)));
+        }
+
+        if (currentQuery.TryGetValue("version", out var version))
+        {
+            input.Version = version.First();
+            editContext.NotifyFieldChanged(editContext.Field(nameof(PackageCompatibiityInput.Version)));
+        }
+
+        if (editContext.IsModified() && editContext.Validate())
+        {
+            await HandleValidSubmitAsync();
+        }
+    }
 
     protected async Task HandleValidSubmitAsync()
     {
@@ -92,21 +158,36 @@
             return;
         }
 
+        var stopwatch = Stopwatch.StartNew();
+        totalDuration = TimeSpan.Zero;
+        result = null;
+        errorMessage = null;
+
+        var localPath = new Uri(NavigationManager.Uri).LocalPath;
+        var pathAndQuery = QueryHelpers.AddQueryString(
+            localPath,
+            new Dictionary<string, string>
+            {
+                { "id", input.Id },
+                { "version", input.Version },
+            });
+        await JSRuntime.InvokeVoidAsync("history.replaceState", null, string.Empty, pathAndQuery);
+
         submitting = true;
         try
         {
             var version = NuGetVersion.Parse(input.Version);
-            result = await Compatibility.GetCompatibilityAsync(input.Id, version);
-            errorMessage = null;
+            allowedEnumeration = input.AllowEnumeration;
+            result = await Compatibility.GetCompatibilityAsync(input.Id, version, allowedEnumeration);
         }
         catch (Exception ex)
         {
-            result = null;
             errorMessage = ex.ToString();
         }
         finally
         {
             submitting = false;
+            totalDuration = stopwatch.Elapsed;
         }
     }
 }

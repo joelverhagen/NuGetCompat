@@ -14,8 +14,6 @@ namespace NuGetCompat
 {
     public class InMemoryPackageReader : PackageReaderBase
     {
-        public static readonly string ManifestPath = "package.nuspec";
-
         private readonly IReadOnlyList<string> _files;
         private readonly Func<Stream> _getManifestStream;
 
@@ -62,7 +60,7 @@ namespace NuGetCompat
 
         public override Stream GetStream(string path)
         {
-            if (path == ManifestPath)
+            if (path.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase))
             {
                 return _getManifestStream();
             }

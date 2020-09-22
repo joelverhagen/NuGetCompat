@@ -1,4 +1,5 @@
 ﻿using Knapcode.MiniZip;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Frameworks;
 using NuGet.Packaging;
@@ -6,16 +7,30 @@ using NuGet.Versioning;
 using NuGetCompat;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 
 namespace CompatFinder.Services
 {
+    public class ResultWithDuration<T>
+    {
+        public ResultWithDuration(T result, TimeSpan duration)
+        {
+            Result = result;
+            Duration = duration;
+        }
+
+        public T Result { get; }
+        public TimeSpan Duration { get; }
+    }
+
     public enum CompatibilityResultType
     {
         Ok,
@@ -25,11 +40,11 @@ namespace CompatFinder.Services
     public class SupportedFrameworks
     {
         public SupportedFrameworks(
-            IReadOnlyList<NuGetFramework> nuspecReader,
-            IReadOnlyList<NuGetFramework> nU1202,
-            IReadOnlyList<NuGetFramework> patternSets,
-            IReadOnlyList<NuGetFramework> frameworkEnumeration,
-            IReadOnlyList<NuGetFramework> duplicatedLogic)
+            ResultWithDuration<IReadOnlyList<NuGetFramework>> nuspecReader,
+            ResultWithDuration<IReadOnlyList<NuGetFramework>> nU1202,
+            ResultWithDuration<IReadOnlyList<NuGetFramework>> patternSets,
+            ResultWithDuration<IReadOnlyList<NuGetFramework>> frameworkEnumeration,
+            ResultWithDuration<IReadOnlyList<NuGetFramework>> duplicatedLogic)
         {
             NuspecReader = nuspecReader;
             NU1202 = nU1202;
@@ -38,19 +53,19 @@ namespace CompatFinder.Services
             DuplicatedLogic = duplicatedLogic;
         }
 
-        public IReadOnlyList<NuGetFramework> NuspecReader { get; }
-        public IReadOnlyList<NuGetFramework> NU1202 { get; }
-        public IReadOnlyList<NuGetFramework> PatternSets { get; }
-        public IReadOnlyList<NuGetFramework> FrameworkEnumeration { get; }
-        public IReadOnlyList<NuGetFramework> DuplicatedLogic { get; }
+        public ResultWithDuration<IReadOnlyList<NuGetFramework>> NuspecReader { get; }
+        public ResultWithDuration<IReadOnlyList<NuGetFramework>> NU1202 { get; }
+        public ResultWithDuration<IReadOnlyList<NuGetFramework>> PatternSets { get; }
+        public ResultWithDuration<IReadOnlyList<NuGetFramework>> FrameworkEnumeration { get; }
+        public ResultWithDuration<IReadOnlyList<NuGetFramework>> DuplicatedLogic { get; }
     }
 
     public class CompatibilityResult
     {
         private CompatibilityResult(
             CompatibilityResultType type,
-            IReadOnlyList<string> files,
-            NuspecReader nuspecReader,
+            ResultWithDuration<List<string>> files,
+            ResultWithDuration<NuspecReader> nuspecReader,
             SupportedFrameworks supportedFrameworks)
         {
             Type = type;
@@ -64,14 +79,17 @@ namespace CompatFinder.Services
             return new CompatibilityResult(CompatibilityResultType.NotFound, files: null, nuspecReader: null, supportedFrameworks: null);
         }
 
-        public static CompatibilityResult Ok(IReadOnlyList<string> files, NuspecReader nuspecReader, SupportedFrameworks supportedFrameworks)
+        public static CompatibilityResult Ok(
+            ResultWithDuration<List<string>> files,
+            ResultWithDuration<NuspecReader> nuspecReader,
+            SupportedFrameworks supportedFrameworks)
         {
             return new CompatibilityResult(CompatibilityResultType.Ok, files, nuspecReader, supportedFrameworks);
         }
 
         public CompatibilityResultType Type { get; }
-        public IReadOnlyList<string> Files { get; }
-        public NuspecReader NuspecReader { get; }
+        public ResultWithDuration<List<string>> Files { get; }
+        public ResultWithDuration<NuspecReader> NuspecReader { get; }
         public SupportedFrameworks SupportedFrameworks { get; }
     }
 
@@ -82,53 +100,76 @@ namespace CompatFinder.Services
         /// </summary>
         private const string PackageBaseAddress = "https://api.nuget.org/v3-flatcontainer/";
 
-        public async Task<CompatibilityResult> GetCompatibilityAsync(string id, NuGetVersion version)
+        public async Task<CompatibilityResult> GetCompatibilityAsync(string id, NuGetVersion version, bool allowEnumerate)
         {
             var lowerId = id.ToLowerInvariant();
             var lowerVersion = version.ToNormalizedString().ToLowerInvariant();
             using HttpClient httpClient = new HttpClient();
 
             // Get the list of files in the package.
-            var files = await GetFilesAsync(httpClient, lowerId, lowerVersion);
-            if (files == null)
+            var files = await ExecuteAsync(() => GetFilesAsync(httpClient, lowerId, lowerVersion));
+            if (files.Result == null)
             {
                 return CompatibilityResult.NotFound();
             }
 
             // Get and parse the .nuspec.
+            var stopwatch = Stopwatch.StartNew();
             using var nuspecStream = await GetNuspecStreamAsync(httpClient, lowerId, lowerVersion);
             var nuspecDocument = LoadDocument(nuspecStream);
             var nuspecReader = new NuspecReader(nuspecDocument);
+            var nuspecReaderDuration = stopwatch.Elapsed;
 
             // Determine the supported frameworks using various approaches.
-            /*
-            var suggestedByNuspecReader = SupportedFrameworksProvider.SupportedByNuspecReader(
-                files,
-                () => nuspecStream);
-            */
-            var suggestedByNuspecReader = new List<NuGetFramework>();
+            var suggestedByNuspecReader = Execute(
+                () => SupportedFrameworksProvider.SupportedByNuspecReader(
+                    files.Result,
+                    () =>
+                    {
+                        var memoryStream = new MemoryStream();
+                        nuspecStream.Position = 0;
+                        nuspecStream.CopyTo(memoryStream);
+                        memoryStream.Position = 0;
+                        return memoryStream;
+                    }));
 
-            var suggestedByNU1202 = SupportedFrameworksProvider.SuggestedByNU1202(files);
+            var suggestedByNU1202 = Execute(
+                () => SupportedFrameworksProvider.SuggestedByNU1202(files.Result));
 
-            var supportedByPatternSets = SupportedFrameworksProvider.SupportedByPatternSets(files);
+            var supportedByPatternSets = Execute<IReadOnlyList<NuGetFramework>>(
+                () => SupportedFrameworksProvider.SupportedByPatternSets(files.Result).ToList());
 
-            var supportedByFrameworkEnumeration = await SupportedFrameworksProvider.SupportedByFrameworkEnumerationAsync(
-                files,
-                nuspecReader,
-                NuGet.Common.NullLogger.Instance);
+            var supportedByFrameworkEnumeration = await ExecuteAsync<IReadOnlyList<NuGetFramework>>(
+                async () =>
+                {
+                    if (allowEnumerate)
+                    {
+                        var result = await SupportedFrameworksProvider.SupportedByFrameworkEnumerationAsync(
+                            files.Result,
+                        nuspecReader,
+                        NuGet.Common.NullLogger.Instance);
+                        return result.ToList();
+                    }
+                    else
+                    {
+                        return Array.Empty<NuGetFramework>();
+                    }
+                });
 
-            var supportedByDuplicatedLogic = SupportedFrameworksProvider.SupportedByDuplicatedLogic(
-                files,
-                nuspecReader);
+            var supportedByDuplicatedLogic = Execute<IReadOnlyList<NuGetFramework>>(
+                () => SupportedFrameworksProvider.SupportedByDuplicatedLogic(files.Result, nuspecReader).ToList());
 
             var supportedFrameworks = new SupportedFrameworks(
-                suggestedByNuspecReader.ToList(),
-                suggestedByNU1202.ToList(),
-                supportedByPatternSets.ToList(),
-                supportedByFrameworkEnumeration.ToList(),
-                supportedByDuplicatedLogic.ToList());
+                suggestedByNuspecReader,
+                suggestedByNU1202,
+                supportedByPatternSets,
+                supportedByFrameworkEnumeration,
+                supportedByDuplicatedLogic);
 
-            return CompatibilityResult.Ok(files, nuspecReader, supportedFrameworks);
+            return CompatibilityResult.Ok(
+                files,
+                new ResultWithDuration<NuspecReader>(nuspecReader, nuspecReaderDuration),
+                supportedFrameworks);
         }
 
         private static async Task<Stream> GetNuspecStreamAsync(HttpClient httpClient, string id, string version)
@@ -174,14 +215,27 @@ namespace CompatFinder.Services
                 IgnoreProcessingInstructions = true,
             };
 
-            // This is intentionally separate from the object initializer so that FXCop can see it.
             settings.XmlResolver = null;
 
-            using (var streamReader = new StreamReader(stream))
+            using (var streamReader = new StreamReader(stream, Encoding.UTF8, true, 1024, true))
             using (var xmlReader = XmlReader.Create(streamReader, settings))
             {
                 return XDocument.Load(xmlReader, LoadOptions.None);
             }
+        }
+
+        private ResultWithDuration<T> Execute<T>(Func<T> act)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = act();
+            return new ResultWithDuration<T>(result, stopwatch.Elapsed);
+        }
+
+        private async Task<ResultWithDuration<T>> ExecuteAsync<T>(Func<Task<T>> actAsync)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = await actAsync();
+            return new ResultWithDuration<T>(result, stopwatch.Elapsed);
         }
     }
 }

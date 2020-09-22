@@ -9,6 +9,15 @@ a, .btn-link {
     color: #0366d6;
 }
 
+.package-compatibility pre {
+    background-color: #f6f8fa;
+    padding: 10px;
+}
+
+.package-compatibility p {
+    margin-bottom: 0;
+}
+
 .btn-primary {
     color: #fff;
     background-color: #1b6ec2;
