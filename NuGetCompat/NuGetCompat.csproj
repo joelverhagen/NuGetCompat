@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NuGet.Frameworks.Generator\NuGet.Frameworks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj" />
+    <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Frameworks\NuGet.Frameworks.csproj" />
   </ItemGroup>
 
 </Project>
