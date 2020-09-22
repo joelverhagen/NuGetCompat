@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -16,6 +16,7 @@
   
   <ItemGroup>
     <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Commands\NuGet.Commands.csproj" />
+    <ProjectReference Include="..\submodules\NuGet.Client\src\NuGet.Core\NuGet.Frameworks\NuGet.Frameworks.csproj" />
   </ItemGroup>
 
 </Project>
