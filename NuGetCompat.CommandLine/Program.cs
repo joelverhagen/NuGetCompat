@@ -29,7 +29,7 @@ namespace NuGetCompat.CommandLine
             var settings = Settings.LoadDefaultSettings(Directory.GetCurrentDirectory());
             var globalPackagesFolder = SettingsUtility.GetGlobalPackagesFolder(settings);
 
-            var take = 20;
+            var take = 1000;
             Console.WriteLine($"Searching for top {take} packages...");
             var results = await search.SearchAsync(
                 searchTerm: string.Empty,
@@ -42,55 +42,72 @@ namespace NuGetCompat.CommandLine
             using var sourceCacheContext = new SourceCacheContext();
             var packageDownloadContext = new PackageDownloadContext(sourceCacheContext);
 
+            var i = 0;
             foreach (var result in results)
             {
-                Console.Write($"Downloading {result.Identity.Id} {result.Identity.Version.ToNormalizedString()}...");
-                using var downloadResult = await download.GetDownloadResourceResultAsync(
+                i++;
+                var downloadResultTask = download.GetDownloadResourceResultAsync(
                     result.Identity,
                     packageDownloadContext,
                     globalPackagesFolder,
                     logger,
                     cancellationToken);
-                Console.WriteLine(" done.");
+                using var cancellationTokenSource = new CancellationTokenSource();
+                var delayTask = Task.Delay(TimeSpan.FromSeconds(1), cancellationTokenSource.Token);
+
+                var firstTask = await Task.WhenAny(downloadResultTask, delayTask);
+                if (firstTask == delayTask)
+                {
+                    Console.Write($"Downloading #{i}: {result.Identity.Id} {result.Identity.Version.ToNormalizedString()}...");
+                    await downloadResultTask;
+                    Console.WriteLine(" done.");
+                }
+                else
+                {
+                    cancellationTokenSource.Cancel();
+                }
+
+                var downloadResult = await downloadResultTask;
 
                 var files = downloadResult.PackageReader.GetFiles().ToList();
 
                 var supportedByNuspecReader = SupportedFrameworksProvider.SupportedByNuspecReader(
                     files,
                     () => downloadResult.PackageReader.GetNuspec()).ToHashSet();
-                supportedByNuspecReader = ReduceFrameworks(supportedByNuspecReader);
 
                 var suggestedByNU1202 = SupportedFrameworksProvider.SuggestedByNU1202(files).ToHashSet();
-                suggestedByNU1202 = ReduceFrameworks(suggestedByNU1202);
 
+                /*
                 var supportedByPatternSets = SupportedFrameworksProvider.SupportedByPatternSets(files);
                 supportedByPatternSets = ReduceFrameworks(supportedByPatternSets);
+                */
 
+                /*
                 var supportedByFrameworkEnumeration = await SupportedFrameworksProvider.SupportedByFrameworkEnumerationAsync(
                     files,
                     downloadResult.PackageReader.NuspecReader,
                     logger);
-                supportedByFrameworkEnumeration = ReduceFrameworks(supportedByFrameworkEnumeration);
+                */
 
                 var supportedByDuplicatedLogic = SupportedFrameworksProvider.SupportedByDuplicatedLogic(
                     files,
                     downloadResult.PackageReader.NuspecReader).ToHashSet();
-                supportedByDuplicatedLogic = ReduceFrameworks(supportedByDuplicatedLogic);
 
                 var sets = new Dictionary<string, HashSet<NuGetFramework>>
                 {
                     { nameof(supportedByNuspecReader), supportedByNuspecReader.ToHashSet() },
                     { nameof(suggestedByNU1202), suggestedByNU1202.ToHashSet() },
-                    { nameof(supportedByPatternSets), supportedByPatternSets },
-                    { nameof(supportedByFrameworkEnumeration), supportedByFrameworkEnumeration },
+                    // { nameof(supportedByPatternSets), supportedByPatternSets },
+                    // { nameof(supportedByFrameworkEnumeration), supportedByFrameworkEnumeration },
                     { nameof(supportedByDuplicatedLogic), supportedByDuplicatedLogic },
                 };
 
                 var haveAny = sets.Values.Any(x => x.Contains(NuGetFramework.AnyFramework));
                 var haveDifferent = sets.Values.Any(x => !sets.Values.All(y => x.SetEquals(y)));
 
-                if (haveAny || haveDifferent)
+                if (haveDifferent)
                 {
+                    Console.WriteLine($"{result.Identity.Id} {result.Identity.Version.ToNormalizedString()}:");
                     foreach (var pair in sets)
                     {
                         DumpFrameworks(pair.Key, pair.Value);
@@ -108,18 +125,6 @@ namespace NuGetCompat.CommandLine
             {
                 Console.WriteLine($"  {framework.GetShortFolderName()}");
             }
-        }
-
-        private static HashSet<NuGetFramework> ReduceFrameworks(HashSet<NuGetFramework> frameworks)
-        {
-            var specificGroups = frameworks.ToLookup(x => x.IsSpecificFramework);
-            var reducer = new FrameworkReducer();
-            var reducedSpecific = reducer.ReduceDownwards(specificGroups[true]);
-
-            return reducedSpecific
-                .Concat(specificGroups[false].Distinct())
-                .OrderBy(x => x, new NuGetFrameworkSorter())
-                .ToHashSet();
         }
     }
 }
